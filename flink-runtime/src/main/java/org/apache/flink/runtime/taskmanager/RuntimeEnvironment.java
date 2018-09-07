@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.util.profiling.MetricsManager;
 
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -51,9 +52,9 @@ public class RuntimeEnvironment implements Environment {
 	private final JobID jobId;
 	private final JobVertexID jobVertexId;
 	private final ExecutionAttemptID executionId;
-	
+
 	private final TaskInfo taskInfo;
-	
+
 	private final Configuration jobConfiguration;
 	private final Configuration taskConfiguration;
 	private final ExecutionConfig executionConfig;
@@ -64,12 +65,12 @@ public class RuntimeEnvironment implements Environment {
 	private final IOManager ioManager;
 	private final BroadcastVariableManager bcVarManager;
 	private final InputSplitProvider splitProvider;
-	
+
 	private final Map<String, Future<Path>> distCacheEntries;
 
 	private final ResultPartitionWriter[] writers;
 	private final InputGate[] inputGates;
-	
+
 	private final CheckpointResponder checkpointResponder;
 
 	private final AccumulatorRegistry accumulatorRegistry;
@@ -80,6 +81,8 @@ public class RuntimeEnvironment implements Environment {
 	private final TaskMetricGroup metrics;
 
 	private final Task containingTask;
+
+	private final MetricsManager metricsManager;
 
 	// ------------------------------------------------------------------------
 
@@ -127,6 +130,7 @@ public class RuntimeEnvironment implements Environment {
 		this.taskManagerInfo = checkNotNull(taskManagerInfo);
 		this.containingTask = containingTask;
 		this.metrics = metrics;
+		this.metricsManager = new MetricsManager(taskInfo.getTaskNameWithSubtasks(), jobConfiguration);
 	}
 
 	// ------------------------------------------------------------------------
@@ -234,6 +238,11 @@ public class RuntimeEnvironment implements Environment {
 	@Override
 	public InputGate[] getAllInputGates() {
 		return inputGates;
+	}
+
+	@Override
+	public MetricsManager getMetricsManager() {
+		return metricsManager;
 	}
 
 	@Override

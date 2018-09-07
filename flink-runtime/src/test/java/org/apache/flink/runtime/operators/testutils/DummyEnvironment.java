@@ -40,6 +40,7 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.runtime.util.profiling.MetricsManager;
 
 import java.util.Collections;
 import java.util.Map;
@@ -186,6 +187,11 @@ public class DummyEnvironment implements Environment {
 
 	@Override
 	public InputGate[] getAllInputGates() {
+		return null;
+	}
+
+	@Override
+	public MetricsManager getMetricsManager() {
 		return null;
 	}
 

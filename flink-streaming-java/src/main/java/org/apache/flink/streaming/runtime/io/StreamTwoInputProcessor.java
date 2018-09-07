@@ -39,6 +39,7 @@ import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
+import org.apache.flink.runtime.util.profiling.MetricsManager;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -119,6 +120,12 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 
 	private Counter numRecordsIn;
 
+	private MetricsManager metricsManager;
+
+	private long deserializationDuration = 0;
+	private long processingDuration = 0;
+	private long recordsProcessed = 0;
+
 	private boolean isFinished;
 
 	@SuppressWarnings("unchecked")
@@ -142,7 +149,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			if (!(maxAlign == -1 || maxAlign > 0)) {
 				throw new IllegalConfigurationException(
 						TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT.key()
-								+ " must be positive or -1 (infinite)");
+							+ " must be positive or -1 (infinite)");
 			}
 			this.barrierHandler = new BarrierBuffer(inputGate, ioManager, maxAlign);
 		}
@@ -205,13 +212,16 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		}
 
 		while (true) {
+
 			if (currentRecordDeserializer != null) {
 				DeserializationResult result;
+				long start = System.nanoTime();
 				if (currentChannel < numInputChannels1) {
 					result = currentRecordDeserializer.getNextRecord(deserializationDelegate1);
 				} else {
 					result = currentRecordDeserializer.getNextRecord(deserializationDelegate2);
 				}
+				deserializationDuration += System.nanoTime() - start;
 
 				if (result.isBufferConsumed()) {
 					currentRecordDeserializer.getCurrentBuffer().recycle();
@@ -240,7 +250,11 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 							synchronized (lock) {
 								numRecordsIn.inc();
 								streamOperator.setKeyContextElement1(record);
-								streamOperator.processElement1(record);
+
+								long processingStart = System.nanoTime();
+								streamOperator.processElement1(recordOrWatermark.<IN1>asRecord());
+								processingDuration += System.nanoTime() - processingStart;
+								recordsProcessed++;
 							}
 							return true;
 
@@ -267,7 +281,11 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 							synchronized (lock) {
 								numRecordsIn.inc();
 								streamOperator.setKeyContextElement2(record);
-								streamOperator.processElement2(record);
+
+								long processingStart = System.nanoTime();
+								streamOperator.processElement2(recordOrWatermark.<IN2>asRecord());
+								processingDuration += System.nanoTime() - processingStart;
+								recordsProcessed++;
 							}
 							return true;
 						}
@@ -275,13 +293,27 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 				}
 			}
 
+			// the buffer got empty
+			if (deserializationDuration > 0) {
+				// inform the MetricsManager that the buffer is consumed
+				metricsManager.inputBufferConsumed(System.nanoTime(), deserializationDuration, processingDuration, recordsProcessed);
+
+				deserializationDuration = 0;
+				processingDuration = 0;
+				recordsProcessed = 0;
+			}
+
 			final BufferOrEvent bufferOrEvent = barrierHandler.getNextNonBlocked();
 			if (bufferOrEvent != null) {
 
 				if (bufferOrEvent.isBuffer()) {
+
 					currentChannel = bufferOrEvent.getChannelIndex();
 					currentRecordDeserializer = recordDeserializers[currentChannel];
 					currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
+
+					// inform the MetricsManager that we got a new input buffer
+					metricsManager.newInputBuffer(System.nanoTime());
 
 				} else {
 					// Event received
@@ -422,5 +454,9 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 				throw new RuntimeException("Exception occurred while processing valve output stream status: ", e);
 			}
 		}
+	}
+
+	public void setMetricsManager(MetricsManager metricsManager) {
+		this.metricsManager = metricsManager;
 	}
 }

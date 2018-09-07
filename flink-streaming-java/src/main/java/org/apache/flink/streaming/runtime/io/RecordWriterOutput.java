@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.runtime.util.profiling.MetricsManager;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -55,7 +56,8 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 			StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
 			TypeSerializer<OUT> outSerializer,
 			OutputTag outputTag,
-			StreamStatusProvider streamStatusProvider) {
+			StreamStatusProvider streamStatusProvider,
+			MetricsManager metricsManager) {
 
 		checkNotNull(recordWriter);
 		this.outputTag = outputTag;
@@ -63,6 +65,8 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 		// with multiplexed records and watermarks
 		this.recordWriter = (StreamRecordWriter<SerializationDelegate<StreamElement>>)
 				(StreamRecordWriter<?>) recordWriter;
+
+		this.recordWriter.setMetricsManager(metricsManager);
 
 		TypeSerializer<StreamElement> outRecordSerializer =
 				new StreamElementSerializer<>(outSerializer);

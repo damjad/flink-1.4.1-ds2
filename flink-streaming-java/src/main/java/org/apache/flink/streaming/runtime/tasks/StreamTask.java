@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
+import org.apache.flink.runtime.util.profiling.MetricsManager;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotResult;
@@ -488,6 +489,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 */
 	public String getName() {
 		return getEnvironment().getTaskInfo().getTaskNameWithSubtasks();
+	}
+
+	public MetricsManager getMetricsManager() {
+		return getEnvironment().getMetricsManager();
 	}
 
 	/**

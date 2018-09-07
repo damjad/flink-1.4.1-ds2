@@ -54,6 +54,7 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.runtime.util.profiling.MetricsManager;
 
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -301,6 +302,11 @@ public class StreamMockEnvironment implements Environment {
 		InputGate[] gates = new InputGate[inputs.size()];
 		inputs.toArray(gates);
 		return gates;
+	}
+
+	@Override
+	public MetricsManager getMetricsManager() {
+		return null;
 	}
 
 	@Override

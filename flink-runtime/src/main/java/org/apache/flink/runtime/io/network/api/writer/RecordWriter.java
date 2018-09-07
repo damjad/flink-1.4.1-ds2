@@ -27,6 +27,7 @@ import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.util.profiling.MetricsManager;
 import org.apache.flink.util.XORShiftRandom;
 
 import java.io.IOException;
@@ -61,6 +62,8 @@ public class RecordWriter<T extends IOReadableWritable> {
 	private final Random RNG = new XORShiftRandom();
 
 	private Counter numBytesOut = new SimpleCounter();
+
+	private MetricsManager metricsManager;
 
 	public RecordWriter(ResultPartitionWriter writer) {
 		this(writer, new RoundRobinChannelSelector<T>());
@@ -110,8 +113,17 @@ public class RecordWriter<T extends IOReadableWritable> {
 	private void sendToTarget(T record, int targetChannel) throws IOException, InterruptedException {
 		RecordSerializer<T> serializer = serializers[targetChannel];
 
+		metricsManager.incRecordsOut();
+
 		synchronized (serializer) {
+
+			long start = System.nanoTime();
+
 			SerializationResult result = serializer.addRecord(record);
+
+			long end = System.nanoTime();
+			// add serialization duration to the MetricsManager
+			metricsManager.addSerialization(end - start);
 
 			while (result.isFullBuffer()) {
 				Buffer buffer = serializer.getCurrentBuffer();
@@ -129,9 +141,21 @@ public class RecordWriter<T extends IOReadableWritable> {
 						break;
 					}
 				} else {
+					long bufferStart = System.nanoTime();
+
 					buffer = targetPartition.getBufferProvider().requestBufferBlocking();
+
+					long bufferEnd = System.nanoTime();
+
+					if (bufferEnd - bufferStart > 0) {
+						// add waiting duration to the MetricsManager
+						metricsManager.addWaitingForWriteBufferDuration(bufferEnd - bufferStart);
+					}
 					result = serializer.setNextBuffer(buffer);
 				}
+
+				// inform the MetricsManager that the buffer is full
+				metricsManager.outputBufferFull(System.nanoTime());
 			}
 		}
 	}
@@ -165,6 +189,8 @@ public class RecordWriter<T extends IOReadableWritable> {
 	}
 
 	public void flush() throws IOException {
+
+		long start = System.nanoTime();
 		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
 			RecordSerializer<T> serializer = serializers[targetChannel];
 
@@ -181,6 +207,12 @@ public class RecordWriter<T extends IOReadableWritable> {
 				}
 			}
 		}
+		long end = System.nanoTime();
+		// add serialization duration to the MetricsManager
+		metricsManager.addSerialization(end - start);
+
+		// inform the MetricsManager that the buffer is consumed
+		metricsManager.outputBufferFull(System.nanoTime());
 	}
 
 	public void clearBuffers() {
@@ -203,7 +235,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 	/**
 	 * Sets the metric group for this RecordWriter.
 	 * @param metrics
-     */
+	 */
 	public void setMetricGroup(TaskIOMetricGroup metrics) {
 		numBytesOut = metrics.getNumBytesOutCounter();
 	}
@@ -225,6 +257,10 @@ public class RecordWriter<T extends IOReadableWritable> {
 		finally {
 			serializer.clearCurrentBuffer();
 		}
+	}
+
+	public void setMetricsManager(MetricsManager metricsManager) {
+		this.metricsManager = metricsManager;
 	}
 
 }

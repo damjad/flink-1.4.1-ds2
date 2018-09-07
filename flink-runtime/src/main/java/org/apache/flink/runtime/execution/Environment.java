@@ -38,6 +38,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.util.profiling.MetricsManager;
 
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -87,16 +88,16 @@ public interface Environment {
 
 	/**
 	 * Gets the task manager info, with configuration and hostname.
-	 * 
-	 * @return The task manager info, with configuration and hostname. 
+	 *
+	 * @return The task manager info, with configuration and hostname.
 	 */
 	TaskManagerRuntimeInfo getTaskManagerInfo();
 
 	/**
 	 * Returns the task specific metric group.
-	 * 
+	 *
 	 * @return The MetricGroup of this task.
-     */
+	 */
 	TaskMetricGroup getMetricGroup();
 
 	/**
@@ -161,7 +162,7 @@ public interface Environment {
 	 * Confirms that the invokable has successfully completed all steps it needed to
 	 * to for the checkpoint with the give checkpoint-ID. This method does not include
 	 * any state in the checkpoint.
-	 * 
+	 *
 	 * @param checkpointId ID of this checkpoint
 	 * @param checkpointMetrics metrics for this checkpoint
 	 */
@@ -181,7 +182,7 @@ public interface Environment {
 	/**
 	 * Declines a checkpoint. This tells the checkpoint coordinator that this task will
 	 * not be able to successfully complete a certain checkpoint.
-	 * 
+	 *
 	 * @param checkpointId The ID of the declined checkpoint.
 	 * @param cause An optional reason why the checkpoint was declined.
 	 */
@@ -209,4 +210,6 @@ public interface Environment {
 	InputGate getInputGate(int index);
 
 	InputGate[] getAllInputGates();
+
+	MetricsManager getMetricsManager();
 }

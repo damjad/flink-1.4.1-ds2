@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.runtime.util.profiling.MetricsManager;
 import org.apache.flink.streaming.api.collector.selector.CopyingDirectedOutput;
 import org.apache.flink.streaming.api.collector.selector.DirectedOutput;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
@@ -115,7 +116,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 					chainedConfigs.get(outEdge.getSourceId()),
 					i,
 					containingTask.getEnvironment(),
-					containingTask.getName());
+					containingTask.getName(),
+					containingTask.getMetricsManager());
 
 				this.streamOutputs[i] = streamOutput;
 				streamOutputMap.put(outEdge, streamOutput);
@@ -372,7 +374,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			StreamConfig upStreamConfig,
 			int outputIndex,
 			Environment taskEnvironment,
-			String taskName) {
+			String taskName,
+			MetricsManager metricsManager) {
 		OutputTag sideOutputTag = edge.getOutputTag(); // OutputTag, return null if not sideOutput
 
 		TypeSerializer outSerializer = null;
@@ -405,7 +408,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				new StreamRecordWriter<>(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
 		output.setMetricGroup(taskEnvironment.getMetricGroup().getIOMetricGroup());
 
-		return new RecordWriterOutput<>(output, outSerializer, sideOutputTag, this);
+		return new RecordWriterOutput<>(output, outSerializer, sideOutputTag, this, metricsManager);
 	}
 
 	// ------------------------------------------------------------------------
