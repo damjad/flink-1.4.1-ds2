@@ -20,6 +20,7 @@ package org.apache.flink.runtime.util.profiling;
 
 import org.apache.flink.configuration.Configuration;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.Charset;
@@ -28,6 +29,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The MetricsManager is responsible for logging activity profiling information (except for messages).
@@ -61,15 +63,15 @@ public class MetricsManager implements Serializable {
 	 * @param taskDescription the String describing the owner operator instance
 	 * @param jobConfiguration this job's configuration
 	 */
-	public MetricsManager(String taskDescription, Configuration jobConfiguration) {
+	public MetricsManager(String taskDescription, Map<String, String> jobConfiguration) {
 		taskId = taskDescription;
 		String workerId = taskId.replace("Timestamps/Watermarks", "Timestamps-Watermarks");
 		workerName = workerId.substring(0, workerId.indexOf("(")-1);
 		instanceId = Integer.parseInt(workerId.substring(workerId.indexOf("(")+1, workerId.indexOf("/")));
 		numInstances = Integer.parseInt(workerId.substring(workerId.indexOf("/")+1, workerId.indexOf(")")));
 		status = new ProcessingStatus();
-		windowSize = jobConfiguration.getLong("policy.windowSize",  10_000_000_000L);
-		ratesPath = jobConfiguration.getString("policy.rates.path", "rates/");
+		windowSize = Long.parseLong(jobConfiguration.getOrDefault("policy.windowSize",  "10000000000"));
+		ratesPath = jobConfiguration.getOrDefault("policy.rates.path", "rates/");
 		currentWindowStart = status.getProcessingStart();
 	}
 
@@ -121,7 +123,11 @@ public class MetricsManager implements Serializable {
 				List<String> rates = Arrays.asList(ratesLine);
 
 				Path ratesFile = Paths.get(ratesPath + workerName.trim() + "-" + instanceId + "-" + epoch + ".log").toAbsolutePath();
+				File f = ratesFile.toFile();
 				try {
+					if(!f.exists()){
+						f.createNewFile();
+					}
 					Files.write(ratesFile, rates, Charset.forName("UTF-8"));
 				} catch (IOException e) {
 					System.err.println("Error while writing rates file for epoch " + epoch
@@ -207,7 +213,12 @@ public class MetricsManager implements Serializable {
 					List<String> rates = Arrays.asList(ratesLine);
 
 					Path ratesFile = Paths.get(ratesPath + workerName.trim() + "-" + instanceId + "-" + epoch + ".log").toAbsolutePath();
+					File f = ratesFile.toFile();
 					try {
+						if(!f.exists()){
+							f.createNewFile();
+						}
+
 						Files.write(ratesFile, rates, Charset.forName("UTF-8"));
 					} catch (IOException e) {
 						System.err.println("Error while writing rates file for epoch " + epoch
