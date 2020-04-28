@@ -72,7 +72,7 @@ public class TWordCountITCase extends TBaseTest {
 
 	private static JobGraph createWordCountJobGraph() {
 // Checking input parameters
-		final ParameterTool params = ParameterTool.fromArgs(new String[]{});
+		final ParameterTool params = ParameterTool.fromArgs(new String[]{"--policy.rates.path","/home/danish/FastWorkspace/BDMA/TUB/ds2/ds2/controller/running-examples/wordcount/metrics_repo/"});
 
 		// set up the execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

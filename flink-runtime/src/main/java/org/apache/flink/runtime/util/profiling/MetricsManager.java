@@ -123,11 +123,7 @@ public class MetricsManager implements Serializable {
 				List<String> rates = Arrays.asList(ratesLine);
 
 				Path ratesFile = Paths.get(ratesPath + workerName.trim() + "-" + instanceId + "-" + epoch + ".log").toAbsolutePath();
-				File f = ratesFile.toFile();
 				try {
-					if(!f.exists()){
-						f.createNewFile();
-					}
 					Files.write(ratesFile, rates, Charset.forName("UTF-8"));
 				} catch (IOException e) {
 					System.err.println("Error while writing rates file for epoch " + epoch
@@ -213,12 +209,7 @@ public class MetricsManager implements Serializable {
 					List<String> rates = Arrays.asList(ratesLine);
 
 					Path ratesFile = Paths.get(ratesPath + workerName.trim() + "-" + instanceId + "-" + epoch + ".log").toAbsolutePath();
-					File f = ratesFile.toFile();
 					try {
-						if(!f.exists()){
-							f.createNewFile();
-						}
-
 						Files.write(ratesFile, rates, Charset.forName("UTF-8"));
 					} catch (IOException e) {
 						System.err.println("Error while writing rates file for epoch " + epoch
